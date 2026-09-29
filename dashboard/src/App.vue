@@ -327,10 +327,6 @@ function selectGeography(point: GeographyPoint) {
   }
 }
 
-function selectBubble() {
-  // Drawer functionality removed
-}
-
 const regionalChartData = computed(() => ({
   labels: geographyRows.value.map((item) => item.label),
   datasets: [{
@@ -449,8 +445,7 @@ const categoryBubbleOptions: ChartOptions<'bubble'> = {
   onClick: (_event, elements) => {
     const element = elements[0]
     if (!element) return
-    const point = categoryBubbleData.value.datasets[element.datasetIndex]?.data[element.index] as ScatterPoint | undefined
-    if (point?.itemId) selectBubble(point)
+    // Bubble click handling removed
   },
 }
 
