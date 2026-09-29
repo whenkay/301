@@ -327,7 +327,7 @@ function selectGeography(point: GeographyPoint) {
   }
 }
 
-function selectBubble(point: ScatterPoint) {
+function selectBubble() {
   // Drawer functionality removed
 }
 
