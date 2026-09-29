@@ -91,10 +91,6 @@ const filters = ref<DashboardFilters>({
 const initialFilters: DashboardFilters = structuredClone(toRaw(filters.value))
 const filtersOpen = ref(false)
 const tabletFiltersOpen = ref(false)
-const detailsOpen = ref(false)
-const selectedProductId = ref<string | null>(null)
-const selectedCampaignId = ref<string | null>(null)
-const detailTab = ref<'Overview' | 'Campaigns' | 'Inventory'>('Overview')
 const regionMetric = ref<'Net Sales' | 'Units' | 'Gross Margin' | 'YoY Growth'>('Net Sales')
 const trendAggregation = ref<Aggregation>('month')
 const trendChannel = ref<'All' | Channel>('All')
@@ -331,19 +327,9 @@ function selectGeography(point: GeographyPoint) {
   }
 }
 
-function selectProduct(productId: string) {
-  selectedProductId.value = productId
-  selectedCampaignId.value = null
-  detailTab.value = 'Overview'
-  detailsOpen.value = true
-}
-
 function selectBubble(point: ScatterPoint) {
-  if (productMap.has(point.itemId)) selectProduct(point.itemId)
+  // Drawer functionality removed
 }
-
-const selectedProduct = computed(() => view.value.decisions.find((decision) => decision.productId === selectedProductId.value) ?? null)
-const selectedProductInventory = computed(() => view.value.currentInventory.filter((stock) => stock.productId === selectedProductId.value))
 
 const regionalChartData = computed(() => ({
   labels: geographyRows.value.map((item) => item.label),
@@ -644,23 +630,9 @@ const campaignHeaders = [
   { title: 'ROAS', key: 'roas' }, { title: 'Conversion lift', key: 'conversionLift' }, { title: 'Recommendation', key: 'recommendation' },
 ]
 
-const selectedCampaign = computed(() => campaignRows.value.find((row) => row.campaign.id === selectedCampaignId.value) ?? null)
-const selectedProductCampaignHistory = computed(() => campaignRows.value.filter((row) => selectedCampaignId.value ? row.campaign.id === selectedCampaignId.value : row.campaign.productIds.includes(selectedProductId.value ?? '')))
-const selectedProductRegionRanking = computed(() => {
-  const product = selectedProduct.value
-  if (!product) return null
-  const index = view.value.regions.findIndex((region) => region.region === product.region)
-  return index < 0 ? null : index + 1
-})
 
-function openCampaignDetail(campaignId: string) {
-  const campaign = campaignMap.get(campaignId)
-  if (!campaign) return
-  selectedCampaignId.value = campaignId
-  selectedProductId.value = campaign.productIds[0] ?? null
-  detailsOpen.value = true
-  detailTab.value = 'Campaigns'
-}
+
+
 
 function exportCsv() {
   const now = new Date()
@@ -695,11 +667,7 @@ const sparklineOptions: ChartOptions<'line'> = {
   elements: { point: { radius: 0, hitRadius: 0 }, line: { borderWidth: 1.5, tension: 0.2 } },
 }
 
-const selectedProductTrend = computed(() => {
-  const product = view.value.currentSales.filter((sale) => sale.productId === selectedProductId.value)
-  const rows = aggregateByDate(product, 'month')
-  return { labels: rows.map((row) => row.period), datasets: [{ label: 'Net sales', data: rows.map((row) => row.netSales), borderColor: '#050505', backgroundColor: 'rgba(5,5,5,0.08)', fill: true }] }
-})
+
 
 function recommendationClass(recommendation: string) {
   return recommendation.toLowerCase().replaceAll(' ', '-')
@@ -710,10 +678,7 @@ function showLiveMessage(message: string) {
   setTimeout(() => { liveMessage.value = '' }, 2600)
 }
 
-function applyRegionFromDetail(regionName: string) {
-  const region = data.dimensions.regions.find((item) => item.name === regionName)
-  if (region) setRegion(region.id)
-}
+
 </script>
 
 <template>
@@ -848,7 +813,7 @@ function applyRegionFromDetail(regionName: string) {
             <div class="decision-table-wrap">
               <v-data-table :headers="productHeaders" :items="filteredDecisions" :items-per-page="15" item-value="productId" density="compact" class="decision-table">
                 <template #item.rank="{ index }">{{ String(index + 1).padStart(2, '0') }}</template>
-                <template #item.product="{ item }"><button class="table-product-link" @click.stop="selectProduct(item.productId)"><strong>{{ item.product }}</strong><small>{{ item.styleCode }}</small></button></template>
+                <template #item.product="{ item }"><span class="table-product-label"><strong>{{ item.product }}</strong><small>{{ item.styleCode }}</small></span></template>
                 <template #item.netSales="{ value }">{{ formatCurrency(value, true) }}</template>
                 <template #item.units="{ value }">{{ formatNumber(value) }}</template>
                 <template #item.salesGrowthPct="{ value }">{{ formatSignedPercent(value) }}</template>
@@ -863,11 +828,11 @@ function applyRegionFromDetail(regionName: string) {
               </v-data-table>
             </div>
             <div class="mobile-decisions" aria-label="Ranked style decisions">
-              <button v-for="(decision, index) in filteredDecisions" :key="decision.productId" type="button" class="mobile-decision" @click="selectProduct(decision.productId)">
+              <div v-for="(decision, index) in filteredDecisions" :key="decision.productId" class="mobile-decision">
                 <span class="mobile-rank">{{ String(index + 1).padStart(2, '0') }}</span><div class="mobile-decision-main"><div><small>{{ decision.styleCode }} / {{ decision.collection }}</small><h3>{{ decision.product }}</h3><span>{{ decision.category }} · {{ decision.region }}</span></div><span :class="['recommendation-tag', recommendationClass(decision.recommendation)]">{{ decision.recommendation }}</span></div>
                 <div class="mobile-decision-metrics"><span><small>NET SALES</small>{{ formatCurrency(decision.netSales, true) }}</span><span><small>MARGIN</small>{{ formatPercent(decision.grossMarginPct) }}</span><span><small>SELL-THROUGH</small>{{ formatPercent(decision.sellThroughPct) }}</span></div>
                 <p>{{ decision.reasons[0] }}</p>
-              </button>
+              </div>
             </div>
             <div class="table-footnote">Synthetic local data · Recommendations are deterministic and should be treated as demo guidance.</div>
           </section>
@@ -879,7 +844,7 @@ function applyRegionFromDetail(regionName: string) {
               <article class="editorial-panel"><div class="panel-heading"><div><h3>Investment portfolio</h3><p>Point size reflects attributed revenue · break-even at zero</p></div><span class="panel-index">07</span></div><div class="campaign-legend"><span>○ REGIONAL</span><span>□ NATIONAL</span><span>△ GLOBAL</span></div><div class="chart-region campaign-portfolio"><Bubble v-if="campaignRows.length" :data="campaignScatterData" :options="campaignScatterOptions" :plugins="[zeroLinePlugin]" /><p v-else class="empty-state">No campaign investment data for this period.</p></div></article>
             </div>
             <div class="campaign-table-wrap"><div class="table-section-heading"><h3>Campaign and apparel</h3><span>{{ filteredCampaignRows.length }} FLIGHTS</span></div><v-data-table :headers="campaignHeaders" :items="filteredCampaignRows" :items-per-page="8" item-value="campaign.id" density="compact" class="campaign-table">
-              <template #item.campaign.name="{ item }"><button class="table-product-link" @click.stop="openCampaignDetail(item.campaign.id)"><strong>{{ item.campaign.name }}</strong><small>OPEN FLIGHT DETAIL</small></button></template>
+              <template #item.campaign.name="{ item }"><span class="table-product-label"><strong>{{ item.campaign.name }}</strong></span></template>
               <template #item.campaign.startDate="{ item }">{{ shortDate(item.campaign.startDate) }} – {{ shortDate(item.campaign.endDate) }}</template>
               <template #item.campaign.spend="{ value }">{{ formatCurrency(value, true) }}</template>
               <template #item.attributedSales="{ value }">{{ formatCurrency(value, true) }}</template>
@@ -898,18 +863,7 @@ function applyRegionFromDetail(regionName: string) {
         </main>
       </div>
 
-      <v-navigation-drawer v-model="detailsOpen" location="right" temporary width="520" class="detail-drawer" aria-label="Product and campaign details">
-        <div v-if="selectedProduct" class="drawer-content">
-          <div class="drawer-topline"><span class="section-kicker">STYLE DETAIL / {{ selectedProduct.styleCode }}</span><button class="drawer-close" aria-label="Close details" @click="detailsOpen = false">×</button></div>
-          <h2>{{ selectedProduct.product }}</h2><p class="drawer-subtitle">{{ selectedProduct.category }} / {{ selectedProduct.collection }} / {{ selectedProduct.season }}</p>
-          <span :class="['recommendation-tag', recommendationClass(selectedProduct.recommendation)]">{{ selectedProduct.recommendation }}</span>
-          <div class="drawer-tabs"><button v-for="tab in ['Overview', 'Campaigns', 'Inventory'] as const" :key="tab" :aria-pressed="detailTab === tab" @click="detailTab = tab">{{ tab.toUpperCase() }}</button></div>
-          <template v-if="detailTab === 'Overview'"><div class="drawer-metrics"><div><span>Net sales</span><strong>{{ formatCurrency(selectedProduct.netSales) }}</strong></div><div><span>Gross margin</span><strong>{{ formatPercent(selectedProduct.grossMarginPct) }}</strong></div><div><span>Sell-through</span><strong>{{ formatPercent(selectedProduct.sellThroughPct) }}</strong></div><div><span>Weeks of supply</span><strong>{{ selectedProduct.weeksOfSupply === null ? 'Not available' : selectedProduct.weeksOfSupply.toFixed(1) }}</strong></div></div><div class="drawer-rankline"><span>Regional ranking</span><strong>{{ selectedProductRegionRanking === null ? 'Not ranked' : `#${selectedProductRegionRanking} in ${selectedProduct.region}` }}</strong></div><div class="chart-region drawer-chart"><Line v-if="selectedProductTrend.labels.length" :data="selectedProductTrend" :options="campaignTimelineOptions" /></div><div class="drawer-section-heading"><h3>Why this recommendation</h3><span>SUPPORTING FACTORS</span></div><ol class="factor-list"><li v-for="reason in selectedProduct.reasons" :key="reason">{{ reason }}</li></ol><div v-if="selectedProduct.risks.length" class="risk-notes"><h4>WATCH ITEMS</h4><p v-for="risk in selectedProduct.risks" :key="risk">{{ risk }}</p></div><button class="drawer-region-link" @click="applyRegionFromDetail(selectedProduct.region)">FILTER TO {{ selectedProduct.region.toUpperCase() }} →</button></template>
-          <template v-else-if="detailTab === 'Campaigns'"><div class="drawer-section-heading"><h3>Campaign history</h3><span>{{ selectedProductCampaignHistory.length }} MATCHES</span></div><div v-for="campaign in selectedProductCampaignHistory" :key="campaign.campaign.id" class="drawer-campaign"><strong>{{ campaign.campaign.name }}</strong><span>{{ campaign.campaign.scope }} / {{ shortDate(campaign.campaign.startDate) }} – {{ shortDate(campaign.campaign.endDate) }}</span><span>ROAS {{ campaign.roas === null ? 'Not available' : `${campaign.roas.toFixed(2)}x` }} · incremental margin {{ formatCurrency(campaign.incrementalMargin, true) }}</span></div><p v-if="!selectedProductCampaignHistory.length" class="empty-state">No campaign support is linked to this style.</p></template>
-          <template v-else><div class="drawer-section-heading"><h3>Inventory health</h3><span>SELECTED PERIOD</span></div><div v-for="stock in selectedProductInventory" :key="stock.id" class="drawer-campaign"><strong>{{ regionMap.get(stock.regionId) }} / {{ stock.channel }}</strong><span>Opening {{ formatNumber(stock.openingUnits) }} · receipts {{ formatNumber(stock.receipts) }} · ending {{ formatNumber(stock.endingUnits) }}</span><span>Weeks of supply {{ selectedProduct.weeksOfSupply === null ? 'Not available' : selectedProduct.weeksOfSupply.toFixed(1) }}</span></div><p v-if="!selectedProductInventory.length" class="empty-state">No inventory records match this period.</p></template>
-        </div>
-        <div v-else-if="selectedCampaign" class="drawer-content"><div class="drawer-topline"><span class="section-kicker">CAMPAIGN DETAIL</span><button class="drawer-close" aria-label="Close details" @click="detailsOpen = false">×</button></div><h2>{{ selectedCampaign.campaign.name }}</h2><p class="drawer-subtitle">{{ selectedCampaign.campaign.scope }} · {{ selectedCampaign.promoted }}</p><div class="drawer-metrics"><div><span>Spend</span><strong>{{ formatCurrency(selectedCampaign.campaign.spend, true) }}</strong></div><div><span>Attributed sales</span><strong>{{ formatCurrency(selectedCampaign.attributedSales, true) }}</strong></div><div><span>Incremental margin</span><strong>{{ formatCurrency(selectedCampaign.incrementalMargin, true) }}</strong></div><div><span>ROAS</span><strong>{{ selectedCampaign.roas === null ? 'Not available' : `${selectedCampaign.roas.toFixed(2)}x` }}</strong></div></div><p class="campaign-caveat">Impact is an estimate from a synthetic baseline comparison; correlation does not establish causality.</p></div>
-      </v-navigation-drawer>
+
     </v-layout>
   </v-app>
 </template>

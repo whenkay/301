@@ -163,6 +163,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .table-product-link { display: grid; gap: 2px; padding: 2px 0; border: 0; background: transparent; color: var(--ink); text-align: left; }
 .table-product-link strong { font-size: 10px; font-weight: 600; }
 .table-product-link small { color: #777; font-size: 8px; }
+.table-product-label { display: grid; gap: 2px; color: var(--ink); text-align: left; }
+.table-product-label strong { font-size: 10px; font-weight: 600; }
+.table-product-label small { color: #777; font-size: 8px; }
 .recommendation-tag { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 6px; border: 1px solid var(--line); color: var(--ink); font-size: 8px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
 .recommendation-tag.invest { border-color: var(--ink); background: var(--ink); color: var(--white); }
 .recommendation-tag.maintain { border-color: #777; background: #777; color: var(--white); }
