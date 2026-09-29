@@ -1,17 +1,10 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "env": {
-    "VERCEL_ANALYTICS_ID": "@auto"
-  },
-  "routes": [
+  "rewrites": [
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html",
-      "status": 200
+      "source": "/(?!assets/|favicon.svg)(.*)",
+      "destination": "/index.html"
     }
   ]
 }
